@@ -1,0 +1,77 @@
+name: Exportar APK Android
+
+# Cole em .github/workflows/exportar-apk.yml no repositório Lindoso-3D.
+# Gera o APK na nuvem (sem precisar de computador). Baixe em Actions > execução > Artifacts.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/exportar-apk.yml'
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preparar templates do Godot
+        run: |
+          mkdir -v -p ~/.local/share/godot/export_templates/ ~/.config/godot/
+          if [ -d /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ] && [ ! -d ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable ]; then
+            mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          fi
+
+      - name: Ajustar projeto para Android
+        run: |
+          grep -q "import_etc2_astc" project.godot || sed -i '/^\[rendering\]/a textures/vram_compression/import_etc2_astc=true' project.godot
+          cat > export_presets.cfg << 'CFG'
+          [preset.0]
+
+          name="Android"
+          platform="Android"
+          runnable=true
+          dedicated_server=false
+          custom_features=""
+          export_filter="all_resources"
+          include_filter=""
+          exclude_filter=""
+          export_path="build/Lindoso3D.apk"
+          encryption_include_filters=""
+          encryption_exclude_filters=""
+          encrypt_pck=false
+          encrypt_directory=false
+
+          [preset.0.options]
+
+          custom_template/debug=""
+          custom_template/release=""
+          gradle_build/use_gradle_build=false
+          architectures/armeabi-v7a=false
+          architectures/arm64-v8a=true
+          architectures/x86=false
+          architectures/x86_64=false
+          version/code=1
+          version/name="1.0"
+          package/unique_name="com.lindoso.lindoso3d"
+          package/name="Lindoso 3D"
+          package/signed=true
+          screen/immersive_mode=true
+          CFG
+          sed -i 's/^          //' export_presets.cfg 2>/dev/null || true
+
+      - name: Importar recursos
+        run: godot --headless --verbose --import || true
+
+      - name: Exportar APK
+        run: |
+          mkdir -v -p build
+          godot --headless --verbose --export-debug "Android" build/Lindoso3D.apk
+          ls -la build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Lindoso3D-apk
+          path: build/Lindoso3D.apk
