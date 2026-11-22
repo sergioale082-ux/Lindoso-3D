@@ -1,0 +1,6 @@
+.godot/
+*.apk
+*.aab
+*.idsig
+export_presets.cfg
+.import/
